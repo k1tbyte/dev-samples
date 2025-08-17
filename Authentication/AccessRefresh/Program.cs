@@ -13,6 +13,7 @@ using AccessRefresh.Services.Domain.CacheService;
 using AccessRefresh.Services.Domain.TokenService;
 using AccessRefresh.Services.Infrastructure.GeolocationService;
 using Microsoft.AspNetCore.HttpOverrides;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Primitives;
@@ -33,6 +34,7 @@ public class Program
             options.JsonSerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
             options.JsonSerializerOptions.DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull;
         });
+        
 
         builder.Services.AddRouting(options =>
         {

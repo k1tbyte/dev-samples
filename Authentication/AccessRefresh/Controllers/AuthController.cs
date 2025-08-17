@@ -1,12 +1,13 @@
 using AccessRefresh.Contracts.DTOs;
 using AccessRefresh.Contracts.Requests;
 using AccessRefresh.Data.Entities;
+using AccessRefresh.Domain.Exceptions;
 using AccessRefresh.Domain.Filters;
 using AccessRefresh.Extensions;
 using AccessRefresh.Services.Application.AuthService;
 using Mapster;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.ModelBinding.Validation;
 
 namespace AccessRefresh.Controllers;
 
@@ -52,6 +53,11 @@ public class AuthController(IAuthService authService) : ControllerBase
     [HttpPost("sign-in")]
     public async Task<TokensDto> SignIn([FromBody] AuthRequest request)
     {
+        if (!ModelState.IsValid)
+        {
+            throw DomainException.InvalidCredentials;
+        }
+        
         var user = await authService.SignInAsync(
             request.Username,
             request.Password
@@ -86,7 +92,7 @@ public class AuthController(IAuthService authService) : ControllerBase
         }
 
         var result = await authService.RevokeSession(
-            sessionId ?? HttpContext.GetSession()!.SessionId,
+            sessionId ?? HttpContext.GetSessionId(),
             HttpContext.GetUser()!.Id
         );
             

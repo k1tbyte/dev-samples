@@ -1,6 +1,5 @@
 ﻿using System.Net;
 using System.Security.Claims;
-using System.Text.Json;
 using AccessRefresh.Contracts.DTOs;
 using AccessRefresh.Data.Entities;
 using AccessRefresh.Domain.Exceptions;
@@ -24,7 +23,8 @@ public sealed class AuthService(
 {
     private const int ExpirationDays = 60;
     private const int AccessTokenExpirationMinutes = 10;
-    private static readonly TimeSpan TokenReuseWindow = TimeSpan.FromSeconds(10);
+    private static readonly TimeSpan TokenReuseWindow = TimeSpan.FromSeconds(5);
+    private static readonly TimeSpan TokenRefreshWindow = TimeSpan.FromSeconds(30);   
     
     public async Task<User> SignUpAsync(
         string username,
@@ -65,7 +65,7 @@ public sealed class AuthService(
     {
         var result = await tokenService.ValidateTokenWithoutTime(
             accessToken,
-            TokenReuseWindow
+            TokenRefreshWindow
         );
         
         if (result == null ||
@@ -91,7 +91,8 @@ public sealed class AuthService(
             throw DomainException.InvalidAuthToken;
         }
         
-        var cachedTokens = await cacheManager.GetAsync<TokensDto>($"reused_refresh:{refreshToken}");
+        var reusedTokenKey = $"reused_refresh:{refreshToken}:{fingerprint}:{ipAddress}";
+        var cachedTokens = await cacheManager.GetAsync<TokensDto>(reusedTokenKey);
         if (cachedTokens != null)
         {
             return cachedTokens;
@@ -127,7 +128,7 @@ public sealed class AuthService(
         };
         
         _ = cacheManager.SetAsync(
-            $"reused_refresh:{refreshToken}",
+            reusedTokenKey,
             tokens,
             TokenReuseWindow
         );

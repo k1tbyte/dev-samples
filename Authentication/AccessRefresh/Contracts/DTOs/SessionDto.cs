@@ -5,7 +5,7 @@ namespace AccessRefresh.Contracts.DTOs;
 public record SessionDto(
     Guid SessionId,
     int UserId,
-    IPAddress IpAddress,
+    string IpAddress,
     string? Country,
     string? CountryCode,
     string? City,

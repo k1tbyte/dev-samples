@@ -14,9 +14,9 @@ public static class UtilExtensions
         return context.Items["user"] as User;
     }
     
-    public static Session? GetSession(this HttpContext context)
+    public static Guid GetSessionId(this HttpContext context)
     {
-        return context.Items["session"] as Session;
+        return (Guid)context.Items[TokenClaimTypes.SessionId]!;
     }
 
     public static string GetFingerprint(this HttpContext context)

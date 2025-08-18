@@ -1,6 +1,6 @@
 ﻿namespace AccessRefresh;
 
-public class Constants
+public static class Constants
 {
     public const string RoutePrefix = "api";
     public const string RouteDefault = $"{RoutePrefix}/[controller]";

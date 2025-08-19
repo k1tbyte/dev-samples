@@ -1,0 +1,10 @@
+<mjml>
+    <mj-body>
+        <mj-section>
+            <mj-column>
+                <mj-text font-size="20px" color="#333333">Добро пожаловать, {{username}}!</mj-text>
+                <mj-button href="{{activation_link}}">Активировать аккаунт</mj-button>
+            </mj-column>
+        </mj-section>
+    </mj-body>
+</mjml>

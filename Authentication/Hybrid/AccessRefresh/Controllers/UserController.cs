@@ -4,7 +4,6 @@ using AccessRefresh.Domain.Filters;
 using AccessRefresh.Extensions;
 using AccessRefresh.Services.Application;
 using Mapster;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace AccessRefresh.Controllers;

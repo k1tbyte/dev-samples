@@ -16,4 +16,6 @@ public class DomainException(string message, HttpStatusCode statusCode) : Except
     public static DomainException InvalidCredentials =>
         new ("Invalid credentials", HttpStatusCode.Unauthorized);
     
+    public static DomainException CaptchaChallengeFailed =>
+        new ("Captcha challenge failed", HttpStatusCode.Forbidden);
 }

@@ -16,6 +16,7 @@ namespace AccessRefresh.Controllers;
 public class AuthController(IAuthService authService) : ControllerBase
 {
     [HttpPost("sign-up")]
+    [TypeFilter(typeof(CaptchaRequired), Arguments = [ "signup" ])]
     public async Task<TokensDto> SignUp([FromBody] AuthRequest request)
     {
         var user = await authService.SignUpAsync(
@@ -39,6 +40,7 @@ public class AuthController(IAuthService authService) : ControllerBase
     }
     
     [HttpPost("forgot-password")]
+    [TypeFilter(typeof(CaptchaRequired), Arguments = [ "forgotpassword" ])]
     public IActionResult ForgotPassword()
     {
         return NoContent();
@@ -51,6 +53,7 @@ public class AuthController(IAuthService authService) : ControllerBase
     }
 
     [HttpPost("sign-in")]
+    [TypeFilter(typeof(CaptchaRequired), Arguments = [ "signin" ])]
     public async Task<TokensDto> SignIn([FromBody] AuthRequest request)
     {
         if (!ModelState.IsValid)

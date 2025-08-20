@@ -1,3 +1,5 @@
+import type {ZodObject} from "zod";
+
 export const enum NotificationType {
     SMS = 'sms',
     EMAIL = 'email',
@@ -6,9 +8,16 @@ export const enum NotificationType {
     IN_APP = 'in_app'
 }
 
+export type SubjectList = {
+    [key: string]: {
+        handler: (payload: any) => Promise<void>;
+        schema: ZodObject
+    };
+}
+
 export interface INotificationSender {
     Type: NotificationType;
-    sendNotification(reason: string, payload: any): Promise<void>;
+    sendNotification(subject: string, payload: any): Promise<void>;
 }
 
 export interface ISmsProvider {
@@ -20,6 +29,6 @@ export interface IEmailProvider {
 }
 
 export type MessageType = {
-    reason: string;
+    subject: string;
     payload: any;
 }

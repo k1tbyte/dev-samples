@@ -29,8 +29,8 @@ export class KafkaListener {
 
                     const senderType = message.key.toString();
                     const body: MessageType = JSON.parse(message.value?.toString());
-                    if(!body.reason) {
-                        console.error("Message does not contain a reason:", body);
+                    if(!body.subject) {
+                        console.error("Message does not contain a subject:", body);
                         return;
                     }
 
@@ -40,7 +40,7 @@ export class KafkaListener {
                         return;
                     }
 
-                    await sender.sendNotification(body.reason, body.payload)
+                    await sender.sendNotification(body.subject, body.payload)
 
                 } catch (err) {
                     console.error("Error:", err);

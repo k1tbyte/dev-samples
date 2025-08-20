@@ -12,14 +12,12 @@ export class GoogleSmtpProvider implements IEmailProvider {
         },
     });
 
-    sendEmail(to: string, subject: string, html?: string, text?: string): Promise<void> {
-        throw new Error("Method not implemented.");
-
-/*        await this.transporter.sendMail({
+    async sendEmail(to: string, subject: string, html?: string, text?: string): Promise<void> {
+        await this.transporter.sendMail({
             from: process.env.SMTP_FROM,
-            to: message.to,
-            subject: message.subject || 'No subject',
+            to: to,
+            subject: subject,
             html,
-        });*/
+        });
     }
 }

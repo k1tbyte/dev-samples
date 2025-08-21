@@ -28,4 +28,6 @@ public interface IAuthService
   //  public bool IsSessionValid(Session? session, string fingerprint);
 
   public Task<bool> IsSessionValid(Guid sessionId, string fingerprint);
+  public Task<MagicLinkTokenDto> CreateMagicLinkAsync(Guid sessionId);
+  public Task<User?> GetMagicLinkOwnerAsync(string token);
 }

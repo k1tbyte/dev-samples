@@ -2,10 +2,11 @@
 
 namespace AccessRefresh.Domain.Exceptions;
 
-public class DomainException(string message, HttpStatusCode statusCode) : Exception(message)
+public class DomainException(string message, HttpStatusCode statusCode = HttpStatusCode.InternalServerError) : Exception(message)
 {
     public HttpStatusCode StatusCode { get; } = statusCode;
-    
+
+    public override string? StackTrace => null;
     
     public static DomainException UserAlreadyExists =>
         new ("User already exists", HttpStatusCode.Conflict);

@@ -14,3 +14,6 @@ public sealed class AuthRequest
     [MaxLength(100, ErrorMessage = "Password cannot exceed 100 characters")]
     public required string Password { get; set; }
 }
+
+public record MagicLinkGenerateRequest(string Password);
+public record MagicLinkVerifyRequest(string Token);

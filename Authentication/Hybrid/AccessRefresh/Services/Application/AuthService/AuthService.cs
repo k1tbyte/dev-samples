@@ -23,6 +23,7 @@ public sealed class AuthService(
 {
     private const int ExpirationDays = 60;
     private const int AccessTokenExpirationMinutes = 10;
+    private const int MagicLinkLifetimeSeconds = 2 * 60; // 2 minutes
     private static readonly TimeSpan TokenReuseWindow = TimeSpan.FromSeconds(5);
     private static readonly TimeSpan TokenRefreshWindow = TimeSpan.FromSeconds(30);   
     
@@ -167,6 +168,40 @@ public sealed class AuthService(
     {
         return await sessionRepository.Set.Where(x => x.UserId == ownerId)
             .OrderByDescending(x => x.IssuedAt).ToArrayAsync();
+    }
+
+    public async Task<MagicLinkTokenDto> CreateMagicLinkAsync(Guid sessionId)
+    {
+        var token = $"{JwtService.GenerateRandomToken()}-{sessionId}";
+        if(!await cacheManager.SetStringAsync(token, "", TimeSpan.FromSeconds(MagicLinkLifetimeSeconds)))
+        {
+            throw new DomainException("Failed to create magic link");
+        }
+
+        return new MagicLinkTokenDto
+        {
+            LifeTimeInSeconds = MagicLinkLifetimeSeconds,
+            MagicLinkToken = token
+        };
+    }
+
+    public async Task<User?> GetMagicLinkOwnerAsync(string token)
+    {
+        if (!await cacheManager.ExistsAsync(token))
+        {
+            return null;
+        }
+        var sessionId = token.Split('-').LastOrDefault();
+        if (sessionId == null || !Guid.TryParse(sessionId, out var sessionGuid))
+        {
+            return null;
+        }
+        
+        // validate session cause it may be revoked in this small time window
+        return await sessionRepository.Set
+            .Where(x => x.SessionId == sessionGuid)
+            .Select(x => x.Owner)
+            .FirstOrDefaultAsync();
     }
     
     /*

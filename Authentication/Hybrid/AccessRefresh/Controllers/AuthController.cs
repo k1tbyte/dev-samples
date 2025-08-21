@@ -5,6 +5,7 @@ using AccessRefresh.Domain.Exceptions;
 using AccessRefresh.Domain.Filters;
 using AccessRefresh.Extensions;
 using AccessRefresh.Services.Application.AuthService;
+using AccessRefresh.Services.Domain;
 using Mapster;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.ModelBinding.Validation;
@@ -74,6 +75,47 @@ public class AuthController(IAuthService authService) : ControllerBase
             HttpContext.GetFingerprint()
         );
     }
+    
+    [HttpPost("magic-link-generate")]
+    [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(MagicLinkTokenDto))]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [TypeFilter(typeof(CaptchaRequired), Arguments = [ "magiclink" ])]
+    [MinRole(EUserRole.User)]
+    public async Task<IActionResult> GenerateMagicLink([FromBody] MagicLinkGenerateRequest generateRequest)
+    {
+        if (!PasswordService.VerifyPassword(generateRequest.Password, HttpContext.GetUser()!.PasswordHash))
+        {
+            return Unauthorized();
+        }
+
+        return Ok(await authService.CreateMagicLinkAsync(HttpContext.GetSessionId()));
+    }
+    
+    [HttpPost("magic-link-verify")]
+    [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(TokensDto))]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    public async Task<IActionResult> MagicLinkVerify([FromBody] MagicLinkVerifyRequest request)
+    {
+        if(string.IsNullOrWhiteSpace(request.Token))
+        {
+            return BadRequest();
+        }
+        
+        var owner = await authService.GetMagicLinkOwnerAsync(request.Token);
+        if (owner == null)
+        {
+            return Unauthorized();
+        }
+        
+        var token = await authService.CreateSessionAsync(
+            owner,
+            HttpContext.Connection.RemoteIpAddress!,
+            Request.Headers.UserAgent.ToString(),
+            HttpContext.GetFingerprint()
+        );
+        
+        return Ok(token);
+    }
 
     [HttpPost("refresh")]
     public async  Task<TokensDto> Refresh(TokensDto request)
@@ -85,6 +127,8 @@ public class AuthController(IAuthService authService) : ControllerBase
     }
     
     [HttpDelete("revoke")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
     [MinRole(EUserRole.User)]
     public async Task<IActionResult> Revoke(bool all = false, Guid? sessionId = null)
     {

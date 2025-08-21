@@ -25,8 +25,8 @@ export class EmailSender extends BaseNotificationSender {
         this.provider = provider;
     }
 
-    private async onAccountVerification( { to, link, username }: TypeAccountVerification) {
-        await this.provider.sendEmail(to,
+    private async onAccountVerification( { email, link, username }: TypeAccountVerification) {
+        await this.provider.sendEmail(email,
             `Account Verification for ${username}`,
             generateMarkup(ETemplateId.ACCOUNT_VERIFICATION, {
                 link,
@@ -35,7 +35,7 @@ export class EmailSender extends BaseNotificationSender {
         )
     }
 
-    private async onPasswordReset({ to, link, username }: TypePasswordReset) {
-        console.log("Sending password reset email to:", to, link, username);
+    private async onPasswordReset({ email, link, username }: TypePasswordReset) {
+        console.log("Sending password reset email to:", email, link, username);
     }
 }

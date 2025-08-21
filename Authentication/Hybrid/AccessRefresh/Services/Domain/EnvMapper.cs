@@ -106,6 +106,7 @@ public partial class EnvMapper
                         "Settings placeholder '{Placeholder}' not found in environment variables. Key: {Key}",
                         match.Groups[1].Value, keyValue.Key
                     );
+                    _config[keyValue.Key] = null;
                     return null!;
                 }
                 

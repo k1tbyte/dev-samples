@@ -2,7 +2,7 @@ import { z } from 'zod';
 
 
 export const AccountVerificationSchema = z.object({
-    to: z.email(),
+    email: z.email(),
     link: z.string(),
     username: z.string()
 })

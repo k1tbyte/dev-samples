@@ -1,14 +1,18 @@
 ﻿using System.Net;
 using AccessRefresh.Contracts.DTOs;
+using AccessRefresh.Contracts.Requests;
 using AccessRefresh.Data.Entities;
 
 namespace AccessRefresh.Services.Application.AuthService;
 
 public interface IAuthService
 {
-    Task<User> SignUpAsync(string username, string password);
+    Task InitiateSignUpAsync(SignUpRequest request);
+    public Task<User> FinalizeSignUpAsync(string token);
+    public Task ResetPasswordAsync(string newPassword, string token);
+    public Task InitiateResetPasswordAsync(string email, string callbackUrl);
 
-    Task<User> SignInAsync(string username, string password);
+    Task<User> SignInAsync(string email, string password);
 
     Task<TokensDto> RefreshSessionAsync(string accessToken,
         string refreshToken,
@@ -24,10 +28,8 @@ public interface IAuthService
     Task<int> RevokeAllSessions(int ownerId);
     Task<bool> RevokeSession(Guid sessionId, int ownerId);
     Task<IEnumerable<Session>> GetSessions(int ownerId);
- //   public Task<Session?> GetSession(Guid sessionId, int ownerId);
-  //  public bool IsSessionValid(Session? session, string fingerprint);
 
-  public Task<bool> IsSessionValid(Guid sessionId, string fingerprint);
-  public Task<MagicLinkTokenDto> CreateMagicLinkAsync(Guid sessionId);
-  public Task<User?> GetMagicLinkOwnerAsync(string token);
+    public Task<bool> IsSessionValid(Guid sessionId, string fingerprint);
+    public Task<MagicLinkTokenDto> CreateMagicLinkAsync(Guid sessionId);
+    public Task<User?> GetMagicLinkOwnerAsync(string token);
 }

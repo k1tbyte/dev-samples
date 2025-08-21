@@ -10,6 +10,9 @@ public class DomainException(string message, HttpStatusCode statusCode = HttpSta
     
     public static DomainException UserAlreadyExists =>
         new ("User already exists", HttpStatusCode.Conflict);
+
+    public static DomainException AccountNotVerified =>
+        new ("Account not verified", HttpStatusCode.Forbidden);
     
     public static DomainException InvalidAuthToken =>
         new ("Invalid authentication token", HttpStatusCode.Unauthorized);

@@ -8,7 +8,6 @@ using AccessRefresh.Services.Application.AuthService;
 using AccessRefresh.Services.Domain;
 using Mapster;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Mvc.ModelBinding.Validation;
 
 namespace AccessRefresh.Controllers;
 
@@ -18,13 +17,16 @@ public class AuthController(IAuthService authService) : ControllerBase
 {
     [HttpPost("sign-up")]
     [TypeFilter(typeof(CaptchaRequired), Arguments = [ "signup" ])]
-    public async Task<TokensDto> SignUp([FromBody] AuthRequest request)
+    public async Task<IActionResult> SignUp([FromBody] SignUpRequest request)
     {
-        var user = await authService.SignUpAsync(
-            request.Username,
-            request.Password
-        );
-        
+        await authService.InitiateSignUpAsync(request);
+        return NoContent();
+    }
+
+    [HttpPost("confirm-email")]
+    public async Task<TokensDto> ConfirmEmail(TokenVerifyRequest request)
+    {
+        var user = authService.FinalizeSignUpAsync(request.Token).GetAwaiter().GetResult();
         return await authService.CreateSessionAsync(
             user,
             // It cant be null in TCP connections
@@ -33,29 +35,29 @@ public class AuthController(IAuthService authService) : ControllerBase
             HttpContext.GetFingerprint()
         );
     }
-
-    [HttpPost("confirm-email")]
-    public IActionResult ConfirmEmail()
-    {
-        return NoContent();
-    }
     
     [HttpPost("forgot-password")]
     [TypeFilter(typeof(CaptchaRequired), Arguments = [ "forgotpassword" ])]
-    public IActionResult ForgotPassword()
+    public async Task<IActionResult> ForgotPassword(ForgotPasswordRequest request)
     {
+        await authService.InitiateResetPasswordAsync(request.Email, request.CallbackUrl);
         return NoContent();
     }
 
     [HttpPost("reset-password")]
-    public IActionResult ResetPassword()
+    public async Task<IActionResult> ResetPassword(ResetPasswordRequest request)
     {
+        await authService.ResetPasswordAsync(
+            request.NewPassword,
+            request.Token
+        );
+        
         return NoContent();
     }
 
     [HttpPost("sign-in")]
     [TypeFilter(typeof(CaptchaRequired), Arguments = [ "signin" ])]
-    public async Task<TokensDto> SignIn([FromBody] AuthRequest request)
+    public async Task<TokensDto> SignIn([FromBody] SignInRequest request)
     {
         if (!ModelState.IsValid)
         {
@@ -63,7 +65,7 @@ public class AuthController(IAuthService authService) : ControllerBase
         }
         
         var user = await authService.SignInAsync(
-            request.Username,
+            request.Email,
             request.Password
         );
         
@@ -94,7 +96,7 @@ public class AuthController(IAuthService authService) : ControllerBase
     [HttpPost("magic-link-verify")]
     [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(TokensDto))]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
-    public async Task<IActionResult> MagicLinkVerify([FromBody] MagicLinkVerifyRequest request)
+    public async Task<IActionResult> MagicLinkVerify([FromBody] TokenVerifyRequest request)
     {
         if(string.IsNullOrWhiteSpace(request.Token))
         {

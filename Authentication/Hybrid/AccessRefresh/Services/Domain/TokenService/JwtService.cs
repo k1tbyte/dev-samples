@@ -41,7 +41,7 @@ public class JwtService(IConfiguration config, JwtSecurityTokenHandler handler)
         return handler.CanReadToken(token) ? handler.ReadJwtToken(token) : null;
     }
     
-    public string GenerateAccessToken(IEnumerable<Claim> claims, DateTime expires)
+    public string GenerateAccessToken(IEnumerable<Claim> claims, DateTime? expires)
     {
         var token = new JwtSecurityToken(
             claims: claims,

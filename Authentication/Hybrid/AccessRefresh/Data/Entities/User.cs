@@ -13,6 +13,10 @@ public sealed class User
     [Column("id")]
     public int Id { get; set; }
     
+    [Column("email")]
+    [MaxLength(254)]
+    public required string Email { get; set; } = string.Empty;
+    
     [Column("username")]
     [MaxLength(32)]
     public required string Username { get; set; }

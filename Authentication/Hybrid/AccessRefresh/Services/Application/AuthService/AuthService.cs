@@ -1,6 +1,8 @@
 ﻿using System.Net;
 using System.Security.Claims;
+using AccessRefresh.Contracts.BrokerMessages;
 using AccessRefresh.Contracts.DTOs;
+using AccessRefresh.Contracts.Requests;
 using AccessRefresh.Data.Entities;
 using AccessRefresh.Domain.Exceptions;
 using AccessRefresh.Repositories.SessionRepository;
@@ -9,6 +11,7 @@ using AccessRefresh.Services.Domain;
 using AccessRefresh.Services.Domain.CacheService;
 using AccessRefresh.Services.Domain.TokenService;
 using AccessRefresh.Services.Infrastructure.GeolocationService;
+using Microsoft.AspNetCore.Identity.Data;
 using Microsoft.EntityFrameworkCore;
 
 namespace AccessRefresh.Services.Application.AuthService;
@@ -19,35 +22,151 @@ public sealed class AuthService(
     JwtService tokenService,
     IGeolocationService geolocation,
     ICacheManager cacheManager,
+    KafkaService kafkaService,
     ILogger<AuthService> logger) : IAuthService
 {
     private const int ExpirationDays = 60;
     private const int AccessTokenExpirationMinutes = 10;
     private const int MagicLinkLifetimeSeconds = 2 * 60; // 2 minutes
+    private static readonly TimeSpan VerificationTokenHours = TimeSpan.FromHours(24);
     private static readonly TimeSpan TokenReuseWindow = TimeSpan.FromSeconds(5);
     private static readonly TimeSpan TokenRefreshWindow = TimeSpan.FromSeconds(30);   
     
-    public async Task<User> SignUpAsync(
-        string username,
-        string password)
+    public async Task InitiateSignUpAsync(SignUpRequest request)
     {
-        if (await userRepository.Set.AnyAsync(x => x.Username == username))
+        if (await userRepository.Set.AnyAsync(x => x.Email == request.Email))
         {
             throw DomainException.UserAlreadyExists;
         }
         
+        var cacheKey = "signup:" + request.Email;
+        var token = tokenService.GenerateAccessToken([
+            new Claim(TokenClaimTypes.Email, request.Email),
+        ], null);
         
-        return await userRepository.WithAutoSaveNext().Add(new User
+        if(await cacheManager.ExistsAsync(cacheKey))
         {
-            Username = username,
-            PasswordHash = PasswordService.HashPassword(password)
+            throw DomainException.UserAlreadyExists;
+        }
+
+        if (!await cacheManager.SetAsync(cacheKey, new UserTempDto(
+                request.Email,
+                request.Username,
+                PasswordService.HashPassword(request.Password),
+                token), VerificationTokenHours)
+           )
+        {
+            logger.LogError("Failed to cache user sign up request for {Username}", request.Username);
+            throw new DomainException("Failed to create user");
+        }
+
+        if (!await kafkaService.ProduceAsync(new AccountVerificationMessage
+            {
+                Username = request.Username,
+                Email = request.Email,
+                Link = $"{request.CallbackUrl}?token={token}"
+            }))
+        {
+            logger.LogError("Failed to produce account verification message for {Username}", request.Username);
+            throw new DomainException("Failed to create user");
+        }
+    }
+
+    public async Task<User> FinalizeSignUpAsync(string token)
+    {
+        var decoded = tokenService.ReadToken(token);
+
+        if (decoded == null)
+        {
+            throw DomainException.InvalidCredentials;
+        }
+        
+        var email = decoded.Claims.FirstOrDefault(x => x.Type == TokenClaimTypes.Email)!.Value;
+        var cacheKey = "signup:" + email;
+        var userTemp = await cacheManager.GetAsync<UserTempDto>(cacheKey);
+        if (userTemp == null)
+        {
+            throw DomainException.InvalidCredentials;
+        }
+        _ = cacheManager.RemoveAsync(cacheKey);
+        
+        return await userRepository.Add(new User
+        {
+            Username = userTemp.Username,
+            Email = userTemp.Email,
+            PasswordHash = userTemp.PasswordHash
         });
     }
 
-    public async Task<User> SignInAsync(string username, string password)
+    public async Task InitiateResetPasswordAsync(string email, string callbackUrl)
     {
         var user = await userRepository.Set
-            .FirstOrDefaultAsync(x => x.Username == username);
+            .FirstOrDefaultAsync(x => x.Email == email);
+
+        if (user == null)
+        {
+            return;
+        }
+
+        var cacheKey = "reset_password:" + email;
+        var token = tokenService.GenerateAccessToken([
+            new Claim(TokenClaimTypes.Email, email),
+        ], null);
+        
+        if (!await cacheManager.SetAsync(cacheKey, token, VerificationTokenHours))
+        {
+            logger.LogError("Failed to cache password reset request for {Email}", email);
+            throw new DomainException("Failed to create password reset request");
+        }
+
+        if (!await kafkaService.ProduceAsync(new PasswordResetMessage
+            {
+                Email = email,
+                Username = user.Username,
+                Link = $"{callbackUrl}?token={token}"
+            }))
+        {
+            logger.LogError("Failed to produce password reset message for {Email}", email);
+            throw new DomainException("Failed to create password reset request");
+        }
+    }
+
+    public async Task ResetPasswordAsync(string newPassword, string token)
+    {
+        var decoded = tokenService.ReadToken(token);
+
+        if (decoded == null)
+        {
+            throw DomainException.InvalidCredentials;
+        }
+        
+        var email = decoded.Claims.FirstOrDefault(x => x.Type == TokenClaimTypes.Email)!.Value;
+        var cacheKey = "reset_password:" + email;
+        var cachedToken = await cacheManager.GetStringAsync(cacheKey);
+        
+        if (cachedToken != token)
+        {
+            throw DomainException.InvalidCredentials;
+        }
+        
+        _ = cacheManager.RemoveAsync(cacheKey);
+        
+        var user = await userRepository.Set
+            .FirstOrDefaultAsync(x => x.Email == email);
+
+        if (user == null)
+        {
+            throw DomainException.InvalidCredentials;
+        }
+
+        user.PasswordHash = PasswordService.HashPassword(newPassword);
+        await userRepository.WithAutoSaveNext().Update(user);
+    }
+    
+    public async Task<User> SignInAsync(string email, string password)
+    {
+        var user = await userRepository.Set
+            .FirstOrDefaultAsync(x => x.Email == email);
 
         if (user == null || !PasswordService.VerifyPassword(password, user.PasswordHash))
         {
@@ -309,7 +428,8 @@ public sealed class AuthService(
         var accessToken = tokenService.GenerateAccessToken([
             new Claim(TokenClaimTypes.Id, user.Id.ToString()),
             new Claim(TokenClaimTypes.SessionId, session.SessionId.ToString()),
-            new Claim(TokenClaimTypes.Username, user.Username)
+            new Claim(TokenClaimTypes.Username, user.Username),
+            new Claim(TokenClaimTypes.Email, user.Email),
         ], DateTime.UtcNow.AddMinutes(AccessTokenExpirationMinutes));
         
         return accessToken;

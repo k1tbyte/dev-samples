@@ -1,6 +1,6 @@
 import { Kafka } from "kafkajs";
 import type { Consumer } from "kafkajs";
-import type {INotificationSender, MessageType} from "./senders/types.ts";
+import type {INotificationSender } from "./senders/types.ts";
 
 export class KafkaListener {
     private consumer: Consumer;
@@ -23,16 +23,12 @@ export class KafkaListener {
         await this.consumer.run({
             eachMessage: async ({ message }) => {
                 try {
-                    if(!message.key || !message.value) {
+                    if(!message.key || !message.value || !message.headers?.type) {
                         return;
                     }
 
-                    const senderType = message.key.toString();
-                    const body: MessageType = JSON.parse(message.value?.toString());
-                    if(!body.subject) {
-                        console.error("Message does not contain a subject:", body);
-                        return;
-                    }
+                    const senderType = message.headers.type.toString();
+                    const payload: any = JSON.parse(message.value?.toString());
 
                     const sender = this.senders[senderType];
                     if (!sender) {
@@ -40,7 +36,7 @@ export class KafkaListener {
                         return;
                     }
 
-                    await sender.sendNotification(body.subject, body.payload)
+                    await sender.sendNotification(message.key.toString(), payload)
 
                 } catch (err) {
                     console.error("Error:", err);

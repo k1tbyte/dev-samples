@@ -27,8 +27,3 @@ export interface ISmsProvider {
 export interface IEmailProvider {
     sendEmail(to: string, subject: string, html?: string, text?: string): Promise<void>;
 }
-
-export type MessageType = {
-    subject: string;
-    payload: any;
-}

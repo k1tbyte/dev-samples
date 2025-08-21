@@ -42,6 +42,10 @@ public sealed class CaptchaRequired(
     
     public override void OnActionExecuting(ActionExecutingContext context)
     {
+        #if DEBUG
+        base.OnActionExecuting(context);
+        return;
+        #endif
         var token = context.HttpContext.Request.Headers["X-Captcha-Token"].ToString();
         if (string.IsNullOrWhiteSpace(token) ||
             !ValidateCaptchaAsync(token, context.HttpContext.Connection.RemoteIpAddress!.ToString()).Result)

@@ -6,7 +6,6 @@ namespace AccessRefresh.Middleware;
 
 public class AuthenticationMiddleware(RequestDelegate next, JwtService jwtService)
 {
-    
     public async Task InvokeAsync(HttpContext context)
     {
         if (!context.Request.Headers.TryGetValue("X-Fingerprint", out var fingerprintValues) || 

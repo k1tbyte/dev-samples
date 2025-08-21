@@ -66,6 +66,7 @@ public class Program
         
         builder.Services.AddSingleton<JwtService>();
         builder.Services.AddSingleton<JwtSecurityTokenHandler>();
+        builder.Services.AddSingleton<KafkaService>();
         
         builder.Services.AddKeyedSingleton<ICacheProvider, RedisCacheProvider>("primary");
         builder.Services.AddKeyedSingleton<ICacheProvider, MemoryCacheProvider>("fallback");
